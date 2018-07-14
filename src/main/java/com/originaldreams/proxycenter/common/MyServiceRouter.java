@@ -3,6 +3,7 @@ package com.originaldreams.proxycenter.common;
 /**
  * 维护组件间相互调用的接口
  * 新增的供组件间调用的接口在这里注册
+ * 接口命名规则：组件名_Controller上的RequestMapping.value_接口上的RequestMapping.value  首字母大写
  */
 public class MyServiceRouter {
 

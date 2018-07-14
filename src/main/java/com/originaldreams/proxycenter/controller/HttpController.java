@@ -1,5 +1,6 @@
 package com.originaldreams.proxycenter.controller;
 
+import com.originaldreams.proxycenter.common.MyBase64Utils;
 import com.originaldreams.proxycenter.common.MyClientRouter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,8 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.ArrayList;
-import java.util.List;
 
 @RestController
 @RequestMapping("/http")
@@ -28,6 +27,7 @@ public class HttpController {
     public ResponseEntity get(String methodName,String parameters){
         ResponseEntity<String> responseEntity;
 
+
         String routerUrl = getRouterUrlByMethodName(methodName);
         if(routerUrl == null){
             return ResponseEntity
@@ -35,13 +35,19 @@ public class HttpController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body("error:请求参数异常");
         }
-        if(parameters == null){
-            responseEntity = restTemplate.getForEntity(routerUrl,String.class);
-        }else{
-            responseEntity = restTemplate.getForEntity(routerUrl + "?" +
-                            parameters.replace(":","=").replace(";","&")
-                    ,String.class);
+        try{
+            if(parameters == null){
+                responseEntity = restTemplate.getForEntity(routerUrl,String.class);
+            }else{
+                responseEntity = restTemplate.getForEntity(routerUrl + "?" + MyBase64Utils.decode(parameters),String.class);
+            }
+        }catch (Exception e){
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("error:请求参数异常");
         }
+
         return responseEntity;
     }
 
@@ -63,9 +69,15 @@ public class HttpController {
                     .body("error:请求参数异常");
         }
 
-        responseEntity = restTemplate.postForEntity(routerUrl + "?" +
-                parameters.replace(":","=").replace(";","&")
-                ,null,String.class);
+        try{
+            responseEntity = restTemplate.postForEntity(routerUrl + "?" + MyBase64Utils.decode(parameters),null,String.class);
+        }catch (Exception e){
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("error:请求参数异常");
+        }
+
 
         return responseEntity;
     }
@@ -79,7 +91,7 @@ public class HttpController {
         if(methodName == null){
             return null;
         }
-        String routerUrl = MyClientRouter.routerMap.get(methodName);
+        String routerUrl = MyClientRouter.routerMap.get(methodName).getRouterUrl();
         if(routerUrl == null || routerUrl.equals("")){
             return null;
         }
