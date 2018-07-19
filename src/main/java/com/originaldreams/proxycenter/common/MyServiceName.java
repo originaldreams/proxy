@@ -1,8 +1,5 @@
 package com.originaldreams.proxycenter.common;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * 维护组件名
  * 新增的组件在这里注册
