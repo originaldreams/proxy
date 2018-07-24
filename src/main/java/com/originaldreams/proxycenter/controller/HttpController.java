@@ -1,8 +1,8 @@
 package com.originaldreams.proxycenter.controller;
 
-import com.originaldreams.proxycenter.common.MyBase64Utils;
-import com.originaldreams.proxycenter.common.MyClientRouter;
-import com.originaldreams.proxycenter.common.MyResponse;
+import com.originaldreams.common.MyBase64Utils;
+import com.originaldreams.common.MyClientRouter;
+import com.originaldreams.common.MyResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
