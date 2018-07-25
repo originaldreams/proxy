@@ -1,8 +1,9 @@
 package com.originaldreams.proxycenter.controller;
 
-import com.originaldreams.common.MyBase64Utils;
-import com.originaldreams.common.MyClientRouter;
-import com.originaldreams.common.MyResponse;
+
+import com.originaldreams.common.encryption.MyBase64Utils;
+import com.originaldreams.common.response.MyResponse;
+import com.originaldreams.common.router.MyRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,11 @@ public class HttpController {
 
     private Integer my_id = null;
 
+    private void setUserId(){
+
+    }
+
+    @RequestMapping(value = "logonWithUserName" , method = RequestMethod.POST)
     public ResponseEntity logonWithUserName(String userName,String password){
         logger.info("logonWithUserName  userName:" + userName);
         if(userName == null || password == null)
@@ -37,6 +43,7 @@ public class HttpController {
         map.put("password",password);
         ResponseEntity<String> responseEntity = restTemplate.postForEntity("",map,String.class);
         //TODO 取出返回里的userId 保存到my_id
+
         return  responseEntity;
     }
     public ResponseEntity logonWithPhone(String phone,String password){
@@ -119,7 +126,7 @@ public class HttpController {
         if(methodName == null)
             return null;
 
-        String routerUrl = MyClientRouter.routerMap.get(methodName).getRouterUrl();
+        String routerUrl = MyRouter.routerMap.get(methodName).getRouterUrl();
         if(routerUrl == null || routerUrl.equals("")){
             return null;
         }

@@ -1,6 +1,6 @@
 package com.originaldreams.proxycenter.controller;
 
-import com.originaldreams.common.MyBase64Utils;
+import com.originaldreams.common.encryption.MyBase64Utils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
