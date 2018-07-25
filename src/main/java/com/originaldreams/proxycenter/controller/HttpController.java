@@ -1,9 +1,10 @@
 package com.originaldreams.proxycenter.controller;
 
-
 import com.originaldreams.common.encryption.MyBase64Utils;
 import com.originaldreams.common.response.MyResponse;
 import com.originaldreams.common.router.MyRouter;
+import com.originaldreams.proxycenter.cache.CacheUtils;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +31,6 @@ public class HttpController {
 
     private Integer my_id = null;
 
-    private void setUserId(){
-
-    }
 
     @RequestMapping(value = "logonWithUserName" , method = RequestMethod.POST)
     public ResponseEntity logonWithUserName(String userName,String password){
@@ -41,11 +40,47 @@ public class HttpController {
         Map<String, String> map = new HashMap<>();
         map.put("userName", userName);
         map.put("password",password);
-        ResponseEntity<String> responseEntity = restTemplate.postForEntity("",map,String.class);
-        //TODO 取出返回里的userId 保存到my_id
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(
+                MyRouter.UserManager_Logon + "?userName={userName}&password={password}",null,String.class,map);
+        logger.info("logonWithUserName response:" + responseEntity.getBody());
+
+        setCacheForLogon(responseEntity);
 
         return  responseEntity;
     }
+
+    /**
+     * 设置登录时的缓存
+     * 包含请求session和用户权限缓存
+     * @param response
+     */
+    private void setCacheForLogon(ResponseEntity<String> response){
+        String result = response.getBody();
+        JSONObject json = new JSONObject(result);
+        int userId = json.getInt("data");
+        logger.info("logonWithUserName userId:" + userId);
+
+        //将userId放入Session
+        request.getSession().setAttribute("my_id",userId);
+
+        //查询用户的权限Id
+        ResponseEntity<String> responseEntity = restTemplate.getForEntity(
+                MyRouter.UserManager_Permission_GetRouterIdsByUserId + "?userId=" + userId,String.class);
+
+        logger.info("UserManager_Permission_GetRouterIdsByUserId response:" + responseEntity.getBody());
+        //将查询到的Id列表转化为List，放入缓存
+        json = new JSONObject(responseEntity.getBody());
+        json.getJSONArray("data");
+        List<Object> list = json.getJSONArray("data").toList();
+        List<Integer> routerIds = new ArrayList<>();
+        for(Object object:list){
+            routerIds.add((int)object);
+        }
+        logger.info("logonWithUserName routerIds:" + routerIds);
+        CacheUtils.userRouterMap.put(userId,routerIds);
+    }
+
+    @RequestMapping(value = "logonWithPhone" , method = RequestMethod.POST)
     public ResponseEntity logonWithPhone(String phone,String password){
         logger.info("logonWithPhone  phone:" + phone);
         if(phone == null || password == null)
@@ -53,11 +88,13 @@ public class HttpController {
         Map<String, String> map = new HashMap<>();
         map.put("phone", phone);
         map.put("password",password);
-        ResponseEntity<String> responseEntity = restTemplate.postForEntity("",map,String.class);
-        //TODO 取出返回里的userId 保存到my_id
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(
+                MyRouter.UserManager_Logon + "?phone={phone}&password={password}",null,String.class,map);
+        setCacheForLogon(responseEntity);
         return  responseEntity;
     }
 
+    @RequestMapping(value = "logonWithEmail" , method = RequestMethod.POST)
     public ResponseEntity logonWithEmail(String email,String password){
         logger.info("logonWithEmail  email:" + email);
         if(email == null || password == null)
@@ -65,8 +102,9 @@ public class HttpController {
         Map<String, String> map = new HashMap<>();
         map.put("email", email);
         map.put("password",password);
-        ResponseEntity<String> responseEntity = restTemplate.postForEntity("",map,String.class);
-        //TODO 取出返回里的userId 保存到my_id
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(
+                MyRouter.UserManager_Logon + "?email={email}&password={password}",null,String.class,map);
+        setCacheForLogon(responseEntity);
         return  responseEntity;
     }
 
