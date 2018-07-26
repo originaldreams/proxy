@@ -4,7 +4,6 @@ import com.originaldreams.common.encryption.MyBase64Utils;
 import com.originaldreams.common.response.MyResponse;
 import com.originaldreams.common.response.MyServiceResponse;
 import com.originaldreams.common.router.MyRouter;
-import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.proxycenter.cache.CacheUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -280,6 +279,11 @@ public class HttpController {
     private void setCacheForLogon(ResponseEntity<String> response){
         String result = response.getBody();
         JSONObject json = new JSONObject(result);
+        int success = json.getInt("success");
+        //登录不成功，不记录session
+        if(success != 0 ){
+            return;
+        }
         int userId = json.getInt("data");
         logger.info("logonWithUserName userId:" + userId);
 
