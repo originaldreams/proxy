@@ -35,7 +35,7 @@ public class HttpController {
     private Integer my_id = null;
 
 
-    @RequestMapping(value = "logonWithUserName" , method = RequestMethod.POST)
+    @RequestMapping(value = "/logonWithUserName" , method = RequestMethod.POST)
     public ResponseEntity logonWithUserName(String userName,String password){
         try{
             logger.info("logonWithUserName  userName:" + userName);
@@ -57,7 +57,7 @@ public class HttpController {
         }
     }
 
-    @RequestMapping(value = "logonWithPhone" , method = RequestMethod.POST)
+    @RequestMapping(value = "/logonWithPhone" , method = RequestMethod.POST)
     public ResponseEntity logonWithPhone(String phone,String password){
         try {
             logger.info("logonWithPhone  phone:" + phone);
@@ -77,7 +77,7 @@ public class HttpController {
 
     }
 
-    @RequestMapping(value = "logonWithEmail" , method = RequestMethod.POST)
+    @RequestMapping(value = "/logonWithEmail" , method = RequestMethod.POST)
     public ResponseEntity logonWithEmail(String email,String password){
         try {
             logger.info("logonWithEmail  email:" + email);
@@ -95,6 +95,24 @@ public class HttpController {
             return getResponseFromException(e);
         }
 
+    }
+
+    @RequestMapping(value = "/register",method = RequestMethod.POST)
+    public ResponseEntity register(String userName,String phone,String email,String password){
+        try {
+            logger.info("register  :" );
+            Map<String, String> map = new HashMap<>();
+            map.put("userName",userName);
+            map.put("phone",phone);
+            map.put("email", email);
+            map.put("password",password);
+            ResponseEntity<String> responseEntity = restTemplate.postForEntity(
+                    MyRouter.UserManager_Register + "?userName={userName}&phone={phone}&email={email}&password={password}",null,String.class,map);
+            return  responseEntity;
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }
     }
 
     /**
