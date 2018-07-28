@@ -23,6 +23,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author 杨凯乐
+ * @date   2018-07-28 19:00:16
+ */
 @RestController
 public class HttpController {
     private Logger logger = LoggerFactory.getLogger(HttpController.class);
@@ -37,13 +41,14 @@ public class HttpController {
     public ResponseEntity logonWithUserName(String userName,String password){
         try{
             logger.info("logonWithUserName  userName:" + userName);
-            if(userName == null || password == null)
+            if(userName == null || password == null){
                 return MyResponse.badRequest();
+            }
             Map<String, String> map = new HashMap<>();
             map.put("userName", userName);
             map.put("password",password);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.UserManager_Logon + "?userName={userName}&password={password}",null,String.class,map);
+                    MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
             logger.info("logonWithUserName response:" + responseEntity.getBody());
 
             setCacheForLogon(responseEntity);
@@ -59,13 +64,14 @@ public class HttpController {
     public ResponseEntity logonWithPhone(String phone,String password){
         try {
             logger.info("logonWithPhone  phone:" + phone);
-            if(phone == null || password == null)
+            if(phone == null || password == null){
                 return MyResponse.badRequest();
+            }
             Map<String, String> map = new HashMap<>();
             map.put("phone", phone);
             map.put("password",password);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.UserManager_Logon + "?phone={phone}&password={password}",null,String.class,map);
+                    MyRouter.USER_MANAGER_LOGON + "?phone={phone}&password={password}",null,String.class,map);
             setCacheForLogon(responseEntity);
             return  responseEntity;
         }catch (HttpClientErrorException e){
@@ -79,13 +85,14 @@ public class HttpController {
     public ResponseEntity logonWithEmail(String email,String password){
         try {
             logger.info("logonWithEmail  email:" + email);
-            if(email == null || password == null)
+            if(email == null || password == null){
                 return MyResponse.badRequest();
+            }
             Map<String, String> map = new HashMap<>();
             map.put("email", email);
             map.put("password",password);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.UserManager_Logon + "?email={email}&password={password}",null,String.class,map);
+                    MyRouter.USER_MANAGER_LOGON + "?email={email}&password={password}",null,String.class,map);
             setCacheForLogon(responseEntity);
             return  responseEntity;
         }catch (HttpClientErrorException e){
@@ -104,8 +111,8 @@ public class HttpController {
             map.put("phone",phone);
             map.put("email", email);
             map.put("password",password);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.UserManager_Register + "?userName={userName}&phone={phone}&email={email}&password={password}",null,String.class,map);
+            ResponseEntity<String> responseEntity = restTemplate.postForEntity(MyRouter.USER_MANAGER_REGISTER +
+                    "?userName={userName}&phone={phone}&email={email}&password={password}",null,String.class,map);
             return  responseEntity;
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
@@ -125,10 +132,12 @@ public class HttpController {
      */
     @RequestMapping(value = "/user" , method = RequestMethod.GET)
     public ResponseEntity userGet(String methodName,String parameters){
-        if(methodName == null)
+        if(methodName == null){
             return MyResponse.badRequest();
-        if(!authenticate(methodName))
+        }
+        if(!authenticate(methodName)){
             return MyResponse.forbidden();
+        }
 
         ResponseEntity<String> responseEntity;
         String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
@@ -158,10 +167,12 @@ public class HttpController {
 
     @RequestMapping(value = "/manager" , method = RequestMethod.GET)
     public ResponseEntity managerGet(String methodName,String parameters){
-        if(methodName == null)
+        if(methodName == null){
             return MyResponse.badRequest();
-        if(!authenticate(methodName))
+        }
+        if(!authenticate(methodName)){
             return MyResponse.forbidden();
+        }
 
         ResponseEntity<String> responseEntity;
         String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
@@ -196,10 +207,12 @@ public class HttpController {
      */
     @RequestMapping(value = "/post" , method = RequestMethod.POST)
     public ResponseEntity post(String methodName,String parameters){
-        if(methodName == null)
+        if(methodName == null){
             return MyResponse.badRequest();
-        if(!authenticate(methodName))
+        }
+        if(!authenticate(methodName)){
             return MyResponse.forbidden();
+        }
 
         ResponseEntity<String> responseEntity;
         String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
@@ -227,8 +240,9 @@ public class HttpController {
      */
     private boolean authenticate(String methodName){
         Integer userId = getUserId();
-        if(userId == null)
+        if(userId == null){
             return false;
+        }
         List<Integer> routerIdList = CacheUtils.userRouterMap.get(getUserId());
         try{
             Integer routerId = MyRouter.getRouterByMethodName(methodName).getId();
@@ -248,10 +262,11 @@ public class HttpController {
      * @throws Exception
      */
     private Map<String,Object> parseMap(String parameters) throws Exception{
-        if(parameters == null)
+        if(parameters == null){
             return null;
+        }
         Map<String ,Object> map = new HashMap<>();
-        for(String kValue : parameters.split(";")){
+        for(String kValue : parameters.split(":")){
             String[] array = kValue.split(";");
             String key = array[0];
             String value = MyBase64Utils.decode(array[1]);
@@ -279,11 +294,12 @@ public class HttpController {
      * @throws Exception
      */
     private String getUrlParameters(String parameters) throws Exception{
-        if(parameters == null)
+        if(parameters == null){
             return null;
+        }
         StringBuilder builder = new StringBuilder();
         builder.append("?");
-        for(String kValue : parameters.split(";")){
+        for(String kValue : parameters.split(":")){
             String[] array = kValue.split(";");
             String key = array[0];
            builder.append(key).append("={").append(key).append("}&");
@@ -313,7 +329,7 @@ public class HttpController {
             case BAD_REQUEST: response = MyResponse.badRequest();break;
             case UNAUTHORIZED: response = MyResponse.unauthorized();break;
             default:{
-                MyServiceResponse myServiceResponse = new MyServiceResponse(MyServiceResponse.success_code_failed,"未知错误");
+                MyServiceResponse myServiceResponse = new MyServiceResponse(MyServiceResponse.SUCCESS_CODE_FAILED,"未知错误");
                 response = ResponseEntity.status(exception.getStatusCode()).contentType(MediaType.APPLICATION_JSON).body(myServiceResponse);
             }
         }
@@ -340,9 +356,9 @@ public class HttpController {
 
         //查询用户的权限Id
         ResponseEntity<String> responseEntity = restTemplate.getForEntity(
-                MyRouter.UserManager_Permission_GetRouterIdsByUserId + "?userId=" + userId,String.class);
+                MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?userId=" + userId,String.class);
 
-        logger.info("UserManager_Permission_GetRouterIdsByUserId response:" + responseEntity.getBody());
+        logger.info("USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID response:" + responseEntity.getBody());
         //将查询到的Id列表转化为List，放入缓存
         json = new JSONObject(responseEntity.getBody());
         json.getJSONArray("data");
