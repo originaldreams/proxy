@@ -36,6 +36,8 @@ public class HttpController {
     @Autowired
     private HttpServletRequest request;
 
+    private final static String USER_ID = "userId";
+
 
     @RequestMapping(value = "/logonWithUserName" , method = RequestMethod.POST)
     public ResponseEntity logonWithUserName(String userName,String password){
@@ -130,8 +132,8 @@ public class HttpController {
      * @param parameters    参数
      * @return
      */
-    @RequestMapping(value = "/user" , method = RequestMethod.GET)
-    public ResponseEntity userGet(String methodName,String parameters){
+    @RequestMapping(value = "/get" , method = RequestMethod.GET)
+    public ResponseEntity get(String methodName,String parameters){
         if(methodName == null){
             return MyResponse.badRequest();
         }
@@ -145,52 +147,40 @@ public class HttpController {
             return MyResponse.badRequest();
         }
         try{
-            if(parameters == null){
-                responseEntity = restTemplate.getForEntity(routerUrl + "?id=" + getUserId(),String.class);
+            /**
+             * TODO 这里出现一个问题，用户是否可以查看别人的信息？用户查看别人的信息时，需不需要隐藏一些敏感信息
+             * 允许管理员在接口中传入userId参数（允许其操作其他User的数据）
+             * 不允许普通用户传递（不允许其操作其他User的数据）
+             */
+            if(isManager()){
+                //Manager的空参数请求，说明就是空参数
+                if(parameters == null){
+                    responseEntity = restTemplate.getForEntity(routerUrl,String.class);
+                }else{
+                    //url后拼接的请求参数格式
+                    String urlParameters = getUrlParameters(parameters);
+                    routerUrl += urlParameters;
+                    //请求参数
+                    Map<String,Object> map = parseMap(parameters);
+                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
+                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
+                }
             }else{
-                //url后拼接的请求参数格式
-                String urlParameters = getUrlParameters(parameters);
-                routerUrl += urlParameters;
-                //请求参数
-                Map<String,Object> map = parseMap(parameters);
-                logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
-            }
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }catch (Exception e){
-            return MyResponse.badRequest();
-        }
-        return responseEntity;
-    }
+                //User的空参数请求自动拼接userId
+                if(parameters == null){
+                    responseEntity = restTemplate.getForEntity(routerUrl + "?" + USER_ID+ "=" + getUserId(),String.class);
+                }else{
+                    //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
+                    String urlParameters = getUrlParametersWithUserId(parameters);
+                    routerUrl += urlParameters;
+                    //请求参数
+                    Map<String,Object> map = parseMapWithUserId(parameters);
+                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
+                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
+                }
 
-    @RequestMapping(value = "/manager" , method = RequestMethod.GET)
-    public ResponseEntity managerGet(String methodName,String parameters){
-        if(methodName == null){
-            return MyResponse.badRequest();
-        }
-        if(!authenticate(methodName)){
-            return MyResponse.forbidden();
-        }
-
-        ResponseEntity<String> responseEntity;
-        String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
-        if(routerUrl == null){
-            return MyResponse.badRequest();
-        }
-        try{
-            if(parameters == null){
-                responseEntity = restTemplate.getForEntity(routerUrl,String.class);
-            }else{
-                //url后拼接的请求参数格式
-                String urlParameters = getUrlParameters(parameters);
-                routerUrl += urlParameters;
-                //请求参数
-                Map<String,Object> map = parseMap(parameters);
-                logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
             }
+
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
             return getResponseFromException(e);
@@ -220,9 +210,15 @@ public class HttpController {
              return MyResponse.badRequest();
         }
         try{
-            routerUrl += getUrlParametersWithUserId(parameters);
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
             logger.info("post  methodName:" + methodName + ",url:" + routerUrl);
-            Map<String,Object> map = parseMapWithUserId(parameters);
             responseEntity = restTemplate.postForEntity(routerUrl,null,String.class,map);
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
@@ -283,7 +279,7 @@ public class HttpController {
      */
     private Map<String,Object> parseMapWithUserId(String parameters) throws Exception {
         Map<String ,Object> map = parseMap(parameters);
-        map.put("my_id",getUserId());
+        map.put(USER_ID,getUserId());
         return map;
     }
 
@@ -314,7 +310,7 @@ public class HttpController {
      * @throws Exception
      */
     private String getUrlParametersWithUserId(String parameters) throws  Exception{
-        return getUrlParameters(parameters) + "my_id={my_id}";
+        return getUrlParameters(parameters) + USER_ID +"={" + USER_ID + "}";
     }
 
     /**
@@ -356,7 +352,7 @@ public class HttpController {
 
         //查询用户的权限Id
         ResponseEntity<String> responseEntity = restTemplate.getForEntity(
-                MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?userId=" + userId,String.class);
+                MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
 
         logger.info("USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID response:" + responseEntity.getBody());
         //将查询到的Id列表转化为List，放入缓存
@@ -367,8 +363,17 @@ public class HttpController {
         for(Object object:list){
             routerIds.add((int)object);
         }
-        logger.info("logonWithUserName routerIds:" + routerIds);
+        //routerIds放入缓存
         CacheUtils.userRouterMap.put(userId,routerIds);
+        //用户权限放入缓存
+        responseEntity = restTemplate.getForEntity(
+                MyRouter.USER_MANAGER_PERMISSION_GET_ROLE_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
+
+        json = new JSONObject(responseEntity.getBody());
+        String roleName = json.getJSONObject("data").getString("name");
+        //角色名放入缓存
+        CacheUtils.userRoleMap.put(userId,roleName);
+        logger.info("logonWithUserName roleName :" + roleName + ", routerIds:" + routerIds);
     }
 
     private Integer getUserId(){
@@ -383,6 +388,21 @@ public class HttpController {
                 return null;
             }
         }
+    }
+
+    /**
+     * TODO 角色准备初始化在common里面，每次UserManagerCenter启动时刷到DB中
+     * @return
+     */
+    private boolean isManager(){
+        Integer userId = getUserId();
+        String roleName = CacheUtils.userRoleMap.get(userId);
+        if(roleName == null || roleName.equals("User")){
+            return false;
+        }else if(roleName.equals("Manager")){
+            return true;
+        }
+        return false;
     }
 
 }
