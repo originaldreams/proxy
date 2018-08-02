@@ -4,6 +4,7 @@ import com.originaldreams.common.encryption.MyBase64Utils;
 import com.originaldreams.common.response.MyResponse;
 import com.originaldreams.common.response.MyServiceResponse;
 import com.originaldreams.common.router.MyRouter;
+import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.proxycenter.cache.CacheUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -73,8 +74,8 @@ public class HttpController {
                 responseEntity = restTemplate.postForEntity(
                         MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
             }
-
-
+            //登录成功，缓存
+            setCacheForLogon(responseEntity);
             return  responseEntity;
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
@@ -124,15 +125,11 @@ public class HttpController {
         if(methodName == null){
             return MyResponse.badRequest();
         }
-        if(!authenticate(methodName)){
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_GET,methodName);
+        if(routerUrl == null){
             return MyResponse.forbidden();
         }
-
         ResponseEntity<String> responseEntity;
-        String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
-        if(routerUrl == null){
-            return MyResponse.badRequest();
-        }
         try{
             /**
              * TODO 这里出现一个问题，用户是否可以查看别人的信息？用户查看别人的信息时，需不需要隐藏一些敏感信息
@@ -184,18 +181,14 @@ public class HttpController {
      */
     @RequestMapping(value = "/post" , method = RequestMethod.POST)
     public ResponseEntity post(String methodName,String parameters){
-        if(methodName == null){
+        if(methodName == null || parameters == null){
             return MyResponse.badRequest();
         }
-        if(!authenticate(methodName)){
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_POST,methodName);
+        if(routerUrl == null){
             return MyResponse.forbidden();
         }
-
         ResponseEntity<String> responseEntity;
-        String routerUrl = MyRouter.getRouterUrlByMethodName(methodName);
-        if(routerUrl == null || parameters == null){
-             return MyResponse.badRequest();
-        }
         try{
             Map<String,Object> map ;
             if(isManager()){
@@ -221,19 +214,22 @@ public class HttpController {
      * @param methodName 客户端调用的方法名
      * @return
      */
-    private boolean authenticate(String methodName){
+    private String authenticateAndReturnRouterUrl(String method,String methodName){
         Integer userId = getUserId();
         if(userId == null){
-            return false;
+            return null;
         }
         List<Integer> routerIdList = CacheUtils.userRouterMap.get(getUserId());
-        try{
-            Integer routerId = MyRouter.getRouterByMethodName(methodName).getId();
-            return  routerIdList.contains(routerId);
-        }catch (Exception e){
-            logger.error("鉴权异常，methodName:" + methodName + ",userId:" + userId);
-           return false;
+
+        MyRouterObject routerObject = MyRouter.getRouter(method,methodName);
+
+        if(routerObject == null || routerIdList == null || routerIdList.size() < 1){
+            return null;
         }
+        Integer routerId = routerObject.getId();
+        String routerUrl = routerIdList.contains(routerId)?routerObject.getRouterUrl():null;
+        return routerUrl;
+
     }
 
 
@@ -249,8 +245,8 @@ public class HttpController {
             return null;
         }
         Map<String ,Object> map = new HashMap<>();
-        for(String kValue : parameters.split(":")){
-            String[] array = kValue.split(";");
+        for(String kValue : parameters.split(";")){
+            String[] array = kValue.split(":");
             String key = array[0];
             String value = MyBase64Utils.decode(array[1]);
             map.put(key,value);
@@ -282,8 +278,8 @@ public class HttpController {
         }
         StringBuilder builder = new StringBuilder();
         builder.append("?");
-        for(String kValue : parameters.split(":")){
-            String[] array = kValue.split(";");
+        for(String kValue : parameters.split(";")){
+            String[] array = kValue.split(":");
             String key = array[0];
            builder.append(key).append("={").append(key).append("}&");
         }
