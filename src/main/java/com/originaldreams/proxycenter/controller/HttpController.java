@@ -40,6 +40,16 @@ public class HttpController {
     private final static String USER_ID = "userId";
 
     /**
+     * 客户端传参时，多个参数之间的分隔符
+     */
+    private final static String SPLIT_PARAMETERS = ";";
+
+    /**
+     * 客户端传参时，Key_Value间的分隔符
+     */
+    private final static String SPLIT_KEY_VALUE = ":";
+
+    /**
      * 统一的登录接口
      *  TODO 提供统一的用户名、手机号、邮箱识别方法 涉及到用户名规则的制定
      * @param userName  用户名、手机号、邮箱
@@ -112,15 +122,16 @@ public class HttpController {
 
     /**
      * 针对一般用户所有get请求的转发
+     * 请求格式如：localhost:8805?methodName=USER_MANAGER_PERMISSION_GET_ROLES_BY_ROUTER_ID&parameters=routerId:MTAwMDE=
      * 特点：当查询条件为用户id时，不用上传用户id
      * 1.鉴权
      * 2.转发
      * 3.针对错误返回码（401、403等）转处理为不同的应答
      * @param methodName    方法名
-     * @param parameters    参数
+     * @param parameters    参数 格式：key1:base64(value1);key2:base64(value2) 如：routerId:MTAwMDE=
      * @return
      */
-    @RequestMapping(value = "/get" , method = RequestMethod.GET)
+    @RequestMapping(method = RequestMethod.GET)
     public ResponseEntity get(String methodName,String parameters){
         if(methodName == null){
             return MyResponse.badRequest();
@@ -179,7 +190,7 @@ public class HttpController {
      * @param parameters 请求参数
      * @return
      */
-    @RequestMapping(value = "/post" , method = RequestMethod.POST)
+    @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity post(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
@@ -207,6 +218,16 @@ public class HttpController {
             return MyResponse.badRequest();
         }
         return responseEntity;
+    }
+
+    @RequestMapping(method = RequestMethod.DELETE)
+    public ResponseEntity delete(String methodName,String parameters){
+        return null;
+    }
+
+    @RequestMapping(method = RequestMethod.PUT)
+    public ResponseEntity put(String methodName,String parameters){
+        return null;
     }
 
     /**
@@ -245,8 +266,8 @@ public class HttpController {
             return null;
         }
         Map<String ,Object> map = new HashMap<>();
-        for(String kValue : parameters.split(";")){
-            String[] array = kValue.split(":");
+        for(String kValue : parameters.split(SPLIT_PARAMETERS)){
+            String[] array = kValue.split(SPLIT_KEY_VALUE);
             String key = array[0];
             String value = MyBase64Utils.decode(array[1]);
             map.put(key,value);
@@ -278,8 +299,8 @@ public class HttpController {
         }
         StringBuilder builder = new StringBuilder();
         builder.append("?");
-        for(String kValue : parameters.split(";")){
-            String[] array = kValue.split(":");
+        for(String kValue : parameters.split(SPLIT_PARAMETERS)){
+            String[] array = kValue.split(SPLIT_KEY_VALUE);
             String key = array[0];
            builder.append(key).append("={").append(key).append("}&");
         }
