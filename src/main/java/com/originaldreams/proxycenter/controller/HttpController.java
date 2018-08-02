@@ -38,72 +38,59 @@ public class HttpController {
 
     private final static String USER_ID = "userId";
 
-
-    @RequestMapping(value = "/logonWithUserName" , method = RequestMethod.POST)
-    public ResponseEntity logonWithUserName(String userName,String password){
-        try{
-            logger.info("logonWithUserName  userName:" + userName);
+    /**
+     * 统一的登录接口
+     *  TODO 提供统一的用户名、手机号、邮箱识别方法 涉及到用户名规则的制定
+     * @param userName  用户名、手机号、邮箱
+     * @param password  密码
+     * @return
+     */
+    @RequestMapping(value = "/logon",method = RequestMethod.POST)
+    public ResponseEntity logon(String userName,String password){
+        try {
+            logger.info("logon  userName:" + userName);
             if(userName == null || password == null){
                 return MyResponse.badRequest();
             }
             Map<String, String> map = new HashMap<>();
-            map.put("userName", userName);
             map.put("password",password);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
-            logger.info("logonWithUserName response:" + responseEntity.getBody());
-
-            setCacheForLogon(responseEntity);
-
-            return  responseEntity;
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }
-    }
-
-    @RequestMapping(value = "/logonWithPhone" , method = RequestMethod.POST)
-    public ResponseEntity logonWithPhone(String phone,String password){
-        try {
-            logger.info("logonWithPhone  phone:" + phone);
-            if(phone == null || password == null){
-                return MyResponse.badRequest();
+            ResponseEntity<String> responseEntity;
+            //手机号
+            if(userName.startsWith("1")){
+                map.put("password",password);
+                responseEntity = restTemplate.postForEntity(
+                        MyRouter.USER_MANAGER_LOGON + "?email={email}&password={password}",null,String.class,map);
             }
-            Map<String, String> map = new HashMap<>();
-            map.put("phone", phone);
-            map.put("password",password);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.USER_MANAGER_LOGON + "?phone={phone}&password={password}",null,String.class,map);
-            setCacheForLogon(responseEntity);
-            return  responseEntity;
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }
-
-    }
-
-    @RequestMapping(value = "/logonWithEmail" , method = RequestMethod.POST)
-    public ResponseEntity logonWithEmail(String email,String password){
-        try {
-            logger.info("logonWithEmail  email:" + email);
-            if(email == null || password == null){
-                return MyResponse.badRequest();
+            //邮箱
+            else if(userName.indexOf("@") > 0 && userName.indexOf(".") > 0){
+                map.put("phone", userName);
+                responseEntity = restTemplate.postForEntity(
+                        MyRouter.USER_MANAGER_LOGON + "?phone={phone}&password={password}",null,String.class,map);
             }
-            Map<String, String> map = new HashMap<>();
-            map.put("email", email);
-            map.put("password",password);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(
-                    MyRouter.USER_MANAGER_LOGON + "?email={email}&password={password}",null,String.class,map);
-            setCacheForLogon(responseEntity);
+            //用户名
+            else{
+                map.put("userName", userName);
+                responseEntity = restTemplate.postForEntity(
+                        MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
+            }
+
+
             return  responseEntity;
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
             return getResponseFromException(e);
         }
-
     }
 
+    /**
+     * 注册
+     * TODO 校验用户名、手机号、邮箱规则 密码长度限制
+     * @param userName 用户名
+     * @param phone 手机号
+     * @param email 邮箱
+     * @param password  密码
+     * @return
+     */
     @RequestMapping(value = "/register",method = RequestMethod.POST)
     public ResponseEntity register(String userName,String phone,String email,String password){
         try {
