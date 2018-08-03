@@ -220,14 +220,74 @@ public class HttpController {
         return responseEntity;
     }
 
+    /**
+     * DELETE请求不允许参数为空
+     * @param methodName
+     * @param parameters
+     * @return
+     */
     @RequestMapping(method = RequestMethod.DELETE)
     public ResponseEntity delete(String methodName,String parameters){
-        return null;
+        if(methodName == null || parameters == null){
+            return MyResponse.badRequest();
+        }
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_DELETE,methodName);
+        if(routerUrl == null){
+            return MyResponse.forbidden();
+        }
+        try{
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
+            logger.info("delete methodName:" + methodName + ",url:" + routerUrl);
+            restTemplate.delete(routerUrl,map);
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }catch (Exception e){
+            return MyResponse.badRequest();
+        }
+        return MyResponse.ok(new MyServiceResponse("删除成功"));
     }
 
+    /**
+     * PUT不允许空参数
+     * @param methodName
+     * @param parameters
+     * @return
+     */
     @RequestMapping(method = RequestMethod.PUT)
     public ResponseEntity put(String methodName,String parameters){
-        return null;
+        if(methodName == null || parameters == null){
+            return MyResponse.badRequest();
+        }
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_PUT,methodName);
+        if(routerUrl == null){
+            return MyResponse.forbidden();
+        }
+        try{
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
+            logger.info("put methodName:" + methodName + ",url:" + routerUrl);
+            restTemplate.put(routerUrl,null,map);
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }catch (Exception e){
+            return MyResponse.badRequest();
+        }
+        return MyResponse.ok(new MyServiceResponse("修改成功"));
     }
 
     /**
