@@ -29,6 +29,7 @@ import java.util.Map;
  * @date   2018-07-28 19:00:16
  */
 @RestController
+@RequestMapping("/api")
 public class HttpController {
     private Logger logger = LoggerFactory.getLogger(HttpController.class);
     @Autowired
@@ -58,7 +59,7 @@ public class HttpController {
      * @param password  密码
      * @return
      */
-    @RequestMapping(value = API_PREFIX + "/logon",method = RequestMethod.POST)
+    @RequestMapping(value = "/logon",method = RequestMethod.POST)
     public ResponseEntity logon(String userName,String password){
         try {
             logger.info("logon  userName:" + userName);
@@ -104,7 +105,7 @@ public class HttpController {
      * @param password  密码
      * @return
      */
-    @RequestMapping(value = API_PREFIX + "/register",method = RequestMethod.POST)
+    @RequestMapping(value = "/register",method = RequestMethod.POST)
     public ResponseEntity register(String userName,String phone,String email,String password){
         try {
             logger.info("register  :" );
@@ -133,7 +134,7 @@ public class HttpController {
      * @param parameters    参数 格式：key1:base64(value1);key2:base64(value2) 如：routerId:MTAwMDE=
      * @return
      */
-    @RequestMapping(value = API_PREFIX, method = RequestMethod.GET)
+    @RequestMapping(method = RequestMethod.GET)
     public ResponseEntity get(String methodName,String parameters){
         if(methodName == null){
             return MyResponse.badRequest();
@@ -192,7 +193,7 @@ public class HttpController {
      * @param parameters 请求参数
      * @return
      */
-    @RequestMapping(value = API_PREFIX, method = RequestMethod.POST)
+    @RequestMapping(method = RequestMethod.POST)
     public ResponseEntity post(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
@@ -228,7 +229,7 @@ public class HttpController {
      * @param parameters
      * @return
      */
-    @RequestMapping(value = API_PREFIX, method = RequestMethod.DELETE)
+    @RequestMapping(method = RequestMethod.DELETE)
     public ResponseEntity delete(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
@@ -263,7 +264,7 @@ public class HttpController {
      * @param parameters
      * @return
      */
-    @RequestMapping(value = API_PREFIX, method = RequestMethod.PUT)
+    @RequestMapping(method = RequestMethod.PUT)
     public ResponseEntity put(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
