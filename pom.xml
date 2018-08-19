@@ -5,7 +5,7 @@
 
     <groupId>com.originaldreams</groupId>
     <artifactId>proxycenter</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <name>proxycenter</name>
@@ -81,6 +81,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
+        <finalName>log</finalName>
     </build>
 
 
