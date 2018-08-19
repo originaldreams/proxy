@@ -49,6 +49,8 @@ public class HttpController {
      */
     private final static String SPLIT_KEY_VALUE = ":";
 
+    private static final String API_PREFIX = "/api";
+
     /**
      * 统一的登录接口
      *  TODO 提供统一的用户名、手机号、邮箱识别方法 涉及到用户名规则的制定
@@ -56,7 +58,7 @@ public class HttpController {
      * @param password  密码
      * @return
      */
-    @RequestMapping(value = "/logon",method = RequestMethod.POST)
+    @RequestMapping(value = API_PREFIX + "/logon",method = RequestMethod.POST)
     public ResponseEntity logon(String userName,String password){
         try {
             logger.info("logon  userName:" + userName);
@@ -102,7 +104,7 @@ public class HttpController {
      * @param password  密码
      * @return
      */
-    @RequestMapping(value = "/register",method = RequestMethod.POST)
+    @RequestMapping(value = API_PREFIX + "/register",method = RequestMethod.POST)
     public ResponseEntity register(String userName,String phone,String email,String password){
         try {
             logger.info("register  :" );
@@ -131,7 +133,7 @@ public class HttpController {
      * @param parameters    参数 格式：key1:base64(value1);key2:base64(value2) 如：routerId:MTAwMDE=
      * @return
      */
-    @RequestMapping(method = RequestMethod.GET)
+    @RequestMapping(value = API_PREFIX, method = RequestMethod.GET)
     public ResponseEntity get(String methodName,String parameters){
         if(methodName == null){
             return MyResponse.badRequest();
@@ -190,7 +192,7 @@ public class HttpController {
      * @param parameters 请求参数
      * @return
      */
-    @RequestMapping(method = RequestMethod.POST)
+    @RequestMapping(value = API_PREFIX, method = RequestMethod.POST)
     public ResponseEntity post(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
@@ -226,7 +228,7 @@ public class HttpController {
      * @param parameters
      * @return
      */
-    @RequestMapping(method = RequestMethod.DELETE)
+    @RequestMapping(value = API_PREFIX, method = RequestMethod.DELETE)
     public ResponseEntity delete(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
@@ -261,7 +263,7 @@ public class HttpController {
      * @param parameters
      * @return
      */
-    @RequestMapping(method = RequestMethod.PUT)
+    @RequestMapping(value = API_PREFIX, method = RequestMethod.PUT)
     public ResponseEntity put(String methodName,String parameters){
         if(methodName == null || parameters == null){
             return MyResponse.badRequest();
