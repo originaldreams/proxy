@@ -81,7 +81,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
-        <finalName>log</finalName>
+        <finalName>proxy</finalName>
     </build>
 
 
