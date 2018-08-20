@@ -71,15 +71,15 @@ public class HttpController {
             ResponseEntity<String> responseEntity;
             //手机号
             if(userName.startsWith("1")){
-                map.put("password",password);
+                map.put("phone",userName);
                 responseEntity = restTemplate.postForEntity(
-                        MyRouter.USER_MANAGER_LOGON + "?email={email}&password={password}",null,String.class,map);
+                        MyRouter.USER_MANAGER_LOGON + "?email={phone}&password={password}",null,String.class,map);
             }
             //邮箱
             else if(userName.indexOf("@") > 0 && userName.indexOf(".") > 0){
-                map.put("phone", userName);
+                map.put("email", userName);
                 responseEntity = restTemplate.postForEntity(
-                        MyRouter.USER_MANAGER_LOGON + "?phone={phone}&password={password}",null,String.class,map);
+                        MyRouter.USER_MANAGER_LOGON + "?phone={email}&password={password}",null,String.class,map);
             }
             //用户名
             else{
@@ -91,6 +91,7 @@ public class HttpController {
             setCacheForLogon(responseEntity);
             return  responseEntity;
         }catch (HttpClientErrorException e){
+            e.printStackTrace();
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
             return getResponseFromException(e);
         }
