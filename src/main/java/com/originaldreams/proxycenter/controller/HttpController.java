@@ -406,42 +406,49 @@ public class HttpController {
      * @param response
      */
     private void setCacheForLogon(ResponseEntity<String> response){
-        String result = response.getBody();
-        JSONObject json = new JSONObject(result);
-        int success = json.getInt("success");
-        //登录不成功，不记录session
-        if(success != 0 ){
-            return;
+        try{
+            String result = response.getBody();
+            JSONObject json = new JSONObject(result);
+            int success = json.getInt("success");
+            //登录不成功，不记录session
+            if(success != 0 ){
+                return;
+            }
+            int userId = json.getInt("data");
+            logger.info("logonWithUserName userId:" + userId);
+            //将userId放入Session
+            request.getSession().setAttribute("userId",userId);
+
+            //查询用户的权限Id
+            ResponseEntity<String> responseEntity = restTemplate.getForEntity(
+                    MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
+
+            logger.info("USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID response:" + responseEntity.getBody());
+            //将查询到的Id列表转化为List，放入缓存
+            json = new JSONObject(responseEntity.getBody());
+            json.getJSONArray("data");
+            List<Object> list = json.getJSONArray("data").toList();
+            List<Integer> routerIds = new ArrayList<>();
+            for(Object object:list){
+                routerIds.add((int)object);
+            }
+            //routerIds放入缓存
+            CacheUtils.userRouterMap.put(userId,routerIds);
+            //用户权限放入缓存
+            responseEntity = restTemplate.getForEntity(
+                    MyRouter.USER_MANAGER_PERMISSION_GET_ROLE_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
+
+            json = new JSONObject(responseEntity.getBody());
+            String roleName = json.getJSONObject("data").getString("name");
+            //角色名放入缓存
+            CacheUtils.userRoleMap.put(userId,roleName);
+            logger.info("logonWithUserName roleName :" + roleName + ", routerIds:" + routerIds);
+        }catch (Exception e){
+            e.printStackTrace();
+            logger.error("setCacheForLogon"  + e.getMessage());
+
         }
-        int userId = json.getInt("data");
-        logger.info("logonWithUserName userId:" + userId);
-        //将userId放入Session
-        request.getSession().setAttribute("userId",userId);
 
-        //查询用户的权限Id
-        ResponseEntity<String> responseEntity = restTemplate.getForEntity(
-                MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
-
-        logger.info("USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID response:" + responseEntity.getBody());
-        //将查询到的Id列表转化为List，放入缓存
-        json = new JSONObject(responseEntity.getBody());
-        json.getJSONArray("data");
-        List<Object> list = json.getJSONArray("data").toList();
-        List<Integer> routerIds = new ArrayList<>();
-        for(Object object:list){
-            routerIds.add((int)object);
-        }
-        //routerIds放入缓存
-        CacheUtils.userRouterMap.put(userId,routerIds);
-        //用户权限放入缓存
-        responseEntity = restTemplate.getForEntity(
-                MyRouter.USER_MANAGER_PERMISSION_GET_ROLE_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
-
-        json = new JSONObject(responseEntity.getBody());
-        String roleName = json.getJSONObject("data").getString("name");
-        //角色名放入缓存
-        CacheUtils.userRoleMap.put(userId,roleName);
-        logger.info("logonWithUserName roleName :" + roleName + ", routerIds:" + routerIds);
     }
 
     private Integer getUserId(){
