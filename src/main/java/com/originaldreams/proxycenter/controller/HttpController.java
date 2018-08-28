@@ -101,22 +101,21 @@ public class HttpController {
      * 注册
      * TODO 校验用户名、手机号、邮箱规则 密码长度限制
      * @param userName 用户名
-     * @param phone 手机号
-     * @param email 邮箱
      * @param password  密码
      * @return
      */
     @RequestMapping(value = "/register",method = RequestMethod.POST)
-    public ResponseEntity register(String userName,String phone,String email,String password){
+    public ResponseEntity register(String userName,String password){
         try {
             logger.info("register  :" );
+            if(userName == null || userName.isEmpty() || password == null || password.isEmpty()){
+                return MyResponse.badRequest();
+            }
             Map<String, String> map = new HashMap<>();
             map.put("userName",userName);
-            map.put("phone",phone);
-            map.put("email", email);
             map.put("password",password);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(MyRouter.USER_MANAGER_REGISTER +
-                    "?userName={userName}&phone={phone}&email={email}&password={password}",null,String.class,map);
+                    "?userName={userName}&password={password}",null,String.class,map);
             return  responseEntity;
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
@@ -124,6 +123,24 @@ public class HttpController {
         }
     }
 
+    @RequestMapping(value = "/sendVerificationCode",method = RequestMethod.GET)
+    public ResponseEntity sendVerificationCode(String phone){
+        try {
+            logger.info("register  :" );
+            if(phone == null || phone.isEmpty()){
+                return MyResponse.badRequest();
+            }
+            Map<String, String> map = new HashMap<>();
+            map.put("phone",phone);
+
+            ResponseEntity<String> responseEntity = restTemplate.getForEntity(
+                    MyRouter.PUBLIC_SERVICE_SMS_SEND_VERIFICATIONCODE + "?phone={phone}",String.class,map);
+            return  responseEntity;
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }
+    }
     /**
      * 针对一般用户所有get请求的转发
      * 请求格式如：localhost:8805?methodName=USER_MANAGER_PERMISSION_GET_ROLES_BY_ROUTER_ID&parameters=routerId:MTAwMDE=
