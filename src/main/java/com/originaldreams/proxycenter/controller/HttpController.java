@@ -5,6 +5,7 @@ import com.originaldreams.common.response.MyResponse;
 import com.originaldreams.common.response.MyServiceResponse;
 import com.originaldreams.common.router.MyRouter;
 import com.originaldreams.common.router.MyRouterObject;
+import com.originaldreams.common.util.StringUtils;
 import com.originaldreams.proxycenter.cache.CacheUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -99,23 +100,24 @@ public class HttpController {
 
     /**
      * 注册
-     * TODO 校验用户名、手机号、邮箱规则 密码长度限制
-     * @param userName 用户名
+     * @param userName 手机号或邮箱
      * @param password  密码
+     * @param verificationCode 验证码
      * @return
      */
     @RequestMapping(value = "/register",method = RequestMethod.POST)
-    public ResponseEntity register(String userName,String password){
+    public ResponseEntity register(String userName,String password,String verificationCode){
         try {
             logger.info("register  :" );
-            if(userName == null || userName.isEmpty() || password == null || password.isEmpty()){
+            if(StringUtils.isEmpty(userName,password,verificationCode)){
                 return MyResponse.badRequest();
             }
             Map<String, String> map = new HashMap<>();
             map.put("userName",userName);
             map.put("password",password);
+            map.put("verificationCode",verificationCode);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(MyRouter.USER_MANAGER_REGISTER +
-                    "?userName={userName}&password={password}",null,String.class,map);
+                    "?userName={userName}&password={password}&verificationCode={verificationCode}",null,String.class,map);
             return  responseEntity;
         }catch (HttpClientErrorException e){
             logger.warn("HttpClientErrorException:" + e.getStatusCode());
