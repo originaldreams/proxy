@@ -6,6 +6,7 @@ import com.originaldreams.common.response.MyServiceResponse;
 import com.originaldreams.common.router.MyRouter;
 import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.common.util.StringUtils;
+import com.originaldreams.common.util.ValidUserName;
 import com.originaldreams.proxycenter.cache.CacheUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -69,24 +70,28 @@ public class HttpController {
             }
             Map<String, String> map = new HashMap<>();
             map.put("password",password);
-            ResponseEntity<String> responseEntity;
+            ResponseEntity<String> responseEntity = null;
             //手机号
-            if(userName.startsWith("1")){
+            if(ValidUserName.isValidPhoneNumber(userName)){
                 map.put("phone",userName);
                 responseEntity = restTemplate.postForEntity(
                         MyRouter.USER_MANAGER_LOGON + "?email={phone}&password={password}",null,String.class,map);
             }
             //邮箱
-            else if(userName.indexOf("@") > 0 && userName.indexOf(".") > 0){
+
+            else if(ValidUserName.isValidEmailAddress(userName)){
                 map.put("email", userName);
                 responseEntity = restTemplate.postForEntity(
                         MyRouter.USER_MANAGER_LOGON + "?phone={email}&password={password}",null,String.class,map);
             }
             //用户名
-            else{
+            else if(ValidUserName.isValidUserName(userName)){
                 map.put("userName", userName);
                 responseEntity = restTemplate.postForEntity(
                         MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
+            }
+            if(responseEntity == null){
+                return MyResponse.badRequest();
             }
             //登录成功，缓存
             setCacheForLogon(responseEntity);
