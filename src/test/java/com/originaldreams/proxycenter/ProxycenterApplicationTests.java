@@ -1,19 +1,27 @@
 package com.originaldreams.proxycenter;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+
+import java.io.IOException;
+import java.util.Map;
 
 public class ProxycenterApplicationTests {
 
     @Test
     public void test() throws Exception{
         String a = "{\"success\":0,\"data\":null,\"message\":null}";
-        JSONObject json = new JSONObject(a);
-        json.getJSONObject("data");
-        System.out.println(json.getJSONObject("data"));
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, String> map;
+        try {
+            map = mapper.readValue(a, Map.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        System.out.println(map.get("data"));
+
+
     }
 
 
