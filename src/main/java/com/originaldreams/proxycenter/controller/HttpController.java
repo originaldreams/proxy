@@ -8,6 +8,7 @@ import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.common.util.StringUtils;
 import com.originaldreams.common.util.ValidUserName;
 import com.originaldreams.proxycenter.cache.CacheUtils;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,8 @@ public class HttpController {
      * 客户端传参时，Key_Value间的分隔符
      */
     private final static String SPLIT_KEY_VALUE = ":";
+
+    private static final String NULL_STRING = "null";
 
     private static final String API_PREFIX = "/api";
 
@@ -430,12 +433,18 @@ public class HttpController {
      * @param response
      */
     private void setCacheForLogon(ResponseEntity<String> response){
+        String result = response.getBody();
+
         try{
-            String result = response.getBody();
+
             JSONObject json = new JSONObject(result);
             int success = json.getInt("success");
             //登录不成功，不记录session
             if(success != 0 ){
+                return;
+            }
+            Object data = json.get("data");
+            if (NULL_STRING.equals(data.toString())) {
                 return;
             }
             int userId = json.getInt("data");
@@ -467,9 +476,9 @@ public class HttpController {
             //角色名放入缓存
             CacheUtils.userRoleMap.put(userId,roleName);
             logger.info("logonWithUserName roleName :" + roleName + ", routerIds:" + routerIds);
-        }catch (Exception e){
+        }catch (JSONException e){
             e.printStackTrace();
-            logger.error("setCacheForLogon"  + e.getMessage());
+            logger.error("setCacheForLogon {}", e.getMessage());
 
         }
 
