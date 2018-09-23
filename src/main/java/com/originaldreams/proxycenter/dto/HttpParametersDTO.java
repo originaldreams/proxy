@@ -7,7 +7,6 @@ public class HttpParametersDTO {
     @NotEmpty
     private String methodName;
 
-    @NotEmpty
     private String parameters;
 
 

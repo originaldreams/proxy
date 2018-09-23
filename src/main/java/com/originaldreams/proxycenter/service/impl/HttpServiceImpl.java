@@ -56,6 +56,7 @@ public class HttpServiceImpl implements HttpService {
             //Manager的空参数请求，说明就是空参数
             if(parameters == null){
                 responseEntity = restTemplate.getForEntity(routerUrl,String.class);
+                return responseEntity;
             }else{
                 //url后拼接的请求参数格式
                 String urlParameters = getUrlParameters(parameters);
@@ -69,6 +70,7 @@ public class HttpServiceImpl implements HttpService {
             if(parameters == null){
                 // TODO userId
                 responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + "",String.class);
+                return responseEntity;
             }else{
                 //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
                 String urlParameters = getUrlParametersWithUserId(parameters);
