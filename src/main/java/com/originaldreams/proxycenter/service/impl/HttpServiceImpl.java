@@ -15,11 +15,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.PatternSyntaxException;
 
 @Service
 public class HttpServiceImpl implements HttpService {
@@ -41,43 +45,79 @@ public class HttpServiceImpl implements HttpService {
 
         RestTemplate restTemplate = new RestTemplate();
 
-        try{
-            /**
-             * TODO 这里出现一个问题，用户是否可以查看别人的信息？用户查看别人的信息时，需不需要隐藏一些敏感信息
-             * 允许管理员在接口中传入userId参数（允许其操作其他User的数据）
-             * 不允许普通用户传递（不允许其操作其他User的数据）
-             */
-            if(isManager()){
-                //Manager的空参数请求，说明就是空参数
-                if(parameters == null){
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class);
-                }else{
-                    //url后拼接的请求参数格式
-                    String urlParameters = getUrlParameters(parameters);
-                    routerUrl += urlParameters;
-                    //请求参数
-                    Map<String,Object> map = parseMap(parameters);
-                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
-                }
-            }else{
-                //User的空参数请求自动拼接userId
-                if(parameters == null){
-                    responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + getUserId(),String.class);
-                }else{
-                    //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
-                    String urlParameters = getUrlParametersWithUserId(parameters);
-                    routerUrl += urlParameters;
-                    //请求参数
-                    Map<String,Object> map = parseMapWithUserId(parameters);
-                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
-                }
+        /**
+         * TODO 这里出现一个问题，用户是否可以查看别人的信息？用户查看别人的信息时，需不需要隐藏一些敏感信息
+         * 允许管理员在接口中传入userId参数（允许其操作其他User的数据）
+         * 不允许普通用户传递（不允许其操作其他User的数据）
+         */
 
+        Map<String,Object> map;
+        if(isManager()){
+            //Manager的空参数请求，说明就是空参数
+            if(parameters == null){
+                responseEntity = restTemplate.getForEntity(routerUrl,String.class);
+            }else{
+                //url后拼接的请求参数格式
+                String urlParameters = getUrlParameters(parameters);
+                routerUrl += urlParameters;
+                //请求参数
+                map = parseMap(parameters);
+                logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
+            }
+        }else{
+            //User的空参数请求自动拼接userId
+            if(parameters == null){
+                // TODO userId
+                responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + "",String.class);
+            }else{
+                //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
+                String urlParameters = getUrlParametersWithUserId(parameters);
+                routerUrl += urlParameters;
+                //请求参数
+                map = parseMapWithUserId(parameters);
+                logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
             }
 
-        }catch (HttpClientErrorException e){
+        }
+
+        try {
+            responseEntity = restTemplate.getForEntity(routerUrl, String.class, map);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
             logger.warn("HttpClientErrorException: {}", e.getStatusCode());
+            return getResponseFromException(e);
+        }
+
+
+        return responseEntity;
+    }
+
+    @Override
+    public ResponseEntity<?> post(HttpParametersDTO httpParametersDTO) {
+
+        String methodName = httpParametersDTO.getMethodName();
+        String parameters = httpParametersDTO.getParameters();
+
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_POST,methodName);
+        if(routerUrl == null){
+            return MyResponse.forbidden();
+        }
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        ResponseEntity<String> responseEntity;
+        try{
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
+            logger.info("post  methodName:" + methodName + ",url:" + routerUrl);
+            responseEntity = restTemplate.postForEntity(routerUrl,null,String.class,map);
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
             return getResponseFromException(e);
         }catch (Exception e){
             return MyResponse.badRequest();
@@ -86,18 +126,68 @@ public class HttpServiceImpl implements HttpService {
     }
 
     @Override
-    public ResponseEntity<?> post(HttpParametersDTO httpParametersDTO) {
-        return null;
-    }
-
-    @Override
     public ResponseEntity<?> put(HttpParametersDTO httpParametersDTO) {
-        return null;
+
+        String methodName = httpParametersDTO.getMethodName();
+        String parameters = httpParametersDTO.getParameters();
+
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_PUT,methodName);
+        if(routerUrl == null){
+            return MyResponse.forbidden();
+        }
+
+        RestTemplate restTemplate = new RestTemplate();
+        try{
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
+            logger.info("put methodName:" + methodName + ",url:" + routerUrl);
+            restTemplate.put(routerUrl,null,map);
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }catch (Exception e){
+            return MyResponse.badRequest();
+        }
+        return MyResponse.ok(new MyServiceResponse("修改成功"));
     }
 
     @Override
     public ResponseEntity<?> delete(HttpParametersDTO httpParametersDTO) {
-        return null;
+
+        String methodName = httpParametersDTO.getMethodName();
+        String parameters = httpParametersDTO.getParameters();
+
+        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_DELETE,methodName);
+        if(routerUrl == null){
+            return MyResponse.forbidden();
+        }
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        try{
+            Map<String,Object> map ;
+            if(isManager()){
+                routerUrl = routerUrl + getUrlParameters(parameters);
+                map = parseMap(parameters);
+            }else{
+                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
+                map = parseMapWithUserId(parameters);
+            }
+            logger.info("delete methodName:" + methodName + ",url:" + routerUrl);
+            restTemplate.delete(routerUrl,map);
+        }catch (HttpClientErrorException e){
+            logger.warn("HttpClientErrorException:" + e.getStatusCode());
+            return getResponseFromException(e);
+        }catch (Exception e){
+            return MyResponse.badRequest();
+        }
+        return MyResponse.ok(new MyServiceResponse("删除成功"));
     }
 
     /**
@@ -115,7 +205,7 @@ public class HttpServiceImpl implements HttpService {
      * @param exception
      * @return
      */
-    private ResponseEntity getResponseFromException(HttpClientErrorException exception){
+    private ResponseEntity getResponseFromException(HttpStatusCodeException exception){
         ResponseEntity response;
         switch (exception.getStatusCode()){
             case FORBIDDEN:  response = MyResponse.forbidden(); break;
@@ -161,15 +251,17 @@ public class HttpServiceImpl implements HttpService {
 
     /**
      * 鉴权
+     * // TODO userId
      * @param methodName 客户端调用的方法名
      * @return
      */
     private String authenticateAndReturnRouterUrl(String method,String methodName){
-        Integer userId = getUserId();
-        if(userId == null){
-            return null;
-        }
-        List<Integer> routerIdList = CacheUtils.userRouterMap.get(getUserId());
+//        Integer userId = getUserId();
+
+//        if(userId == null){
+//            return null;
+//        }
+        List<Integer> routerIdList = CacheUtils.userRouterMap.get("userId");
 
         MyRouterObject routerObject = MyRouter.getRouter(method,methodName);
 
@@ -190,7 +282,7 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private Map<String,Object> parseMap(String parameters) throws Exception{
+    private Map<String,Object> parseMap(String parameters) throws PatternSyntaxException{
         if(parameters == null){
             return null;
         }
@@ -210,11 +302,6 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private Map<String,Object> parseMapWithUserId(String parameters) throws Exception {
-        Map<String ,Object> map = parseMap(parameters);
-        map.put(HttpConstant.USER_ID, getUserId());
-        return map;
-    }
 
     /**
      * 获取Url参数
@@ -222,7 +309,7 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private String getUrlParameters(String parameters) throws Exception{
+    private String getUrlParameters(String parameters) throws PatternSyntaxException {
         if(parameters == null){
             return null;
         }
@@ -235,4 +322,18 @@ public class HttpServiceImpl implements HttpService {
         }
         return builder.toString();
     }
+
+    /**
+     * 根据参数生成Map （含userId）
+     * @param parameters    加密过的参数
+     * @return
+     * @throws Exception
+     */
+    private Map<String,Object> parseMapWithUserId(String parameters) throws Exception {
+        Map<String ,Object> map = parseMap(parameters);
+        map.put(USER_ID,getUserId());
+        return map;
+    }
+
+
 }

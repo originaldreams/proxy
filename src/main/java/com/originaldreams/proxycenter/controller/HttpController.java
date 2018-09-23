@@ -72,33 +72,13 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.POST)
-    public ResponseEntity post(String methodName,String parameters){
-        if(methodName == null || parameters == null){
+    public ResponseEntity post(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
             return MyResponse.badRequest();
         }
-        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_POST,methodName);
-        if(routerUrl == null){
-            return MyResponse.forbidden();
-        }
-        ResponseEntity<String> responseEntity;
-        try{
-            Map<String,Object> map ;
-            if(isManager()){
-                routerUrl = routerUrl + getUrlParameters(parameters);
-                map = parseMap(parameters);
-            }else{
-                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
-            }
-            logger.info("post  methodName:" + methodName + ",url:" + routerUrl);
-            responseEntity = restTemplate.postForEntity(routerUrl,null,String.class,map);
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }catch (Exception e){
-            return MyResponse.badRequest();
-        }
-        return responseEntity;
+
+        return httpService.post(httpParametersDTO);
+
     }
 
     /**
@@ -108,32 +88,13 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.DELETE)
-    public ResponseEntity delete(String methodName,String parameters){
-        if(methodName == null || parameters == null){
+    public ResponseEntity delete(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
             return MyResponse.badRequest();
         }
-        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_DELETE,methodName);
-        if(routerUrl == null){
-            return MyResponse.forbidden();
-        }
-        try{
-            Map<String,Object> map ;
-            if(isManager()){
-                routerUrl = routerUrl + getUrlParameters(parameters);
-                map = parseMap(parameters);
-            }else{
-                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
-            }
-            logger.info("delete methodName:" + methodName + ",url:" + routerUrl);
-            restTemplate.delete(routerUrl,map);
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }catch (Exception e){
-            return MyResponse.badRequest();
-        }
-        return MyResponse.ok(new MyServiceResponse("删除成功"));
+
+        return httpService.delete(httpParametersDTO);
+
     }
 
     /**
@@ -143,32 +104,13 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.PUT)
-    public ResponseEntity put(String methodName,String parameters){
-        if(methodName == null || parameters == null){
+    public ResponseEntity put(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
             return MyResponse.badRequest();
         }
-        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_PUT,methodName);
-        if(routerUrl == null){
-            return MyResponse.forbidden();
-        }
-        try{
-            Map<String,Object> map ;
-            if(isManager()){
-                routerUrl = routerUrl + getUrlParameters(parameters);
-                map = parseMap(parameters);
-            }else{
-                routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
-            }
-            logger.info("put methodName:" + methodName + ",url:" + routerUrl);
-            restTemplate.put(routerUrl,null,map);
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }catch (Exception e){
-            return MyResponse.badRequest();
-        }
-        return MyResponse.ok(new MyServiceResponse("修改成功"));
+
+        return httpService.put(httpParametersDTO);
+
     }
 
 
