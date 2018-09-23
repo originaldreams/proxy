@@ -69,7 +69,7 @@ public class HttpServiceImpl implements HttpService {
             //User的空参数请求自动拼接userId
             if(parameters == null){
                 // TODO userId
-                responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + "",String.class);
+                responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + "userId",String.class);
                 return responseEntity;
             }else{
                 //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
