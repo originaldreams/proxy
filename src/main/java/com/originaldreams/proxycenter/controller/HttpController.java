@@ -7,6 +7,8 @@ import com.originaldreams.common.router.MyRouter;
 import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.common.util.StringUtils;
 import com.originaldreams.proxycenter.cache.CacheUtils;
+import com.originaldreams.proxycenter.dto.HttpParametersDTO;
+import com.originaldreams.proxycenter.service.HttpService;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -14,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +26,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,21 +42,8 @@ public class HttpController {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpController.class);
 
-
-    /**
-     * 客户端传参时，多个参数之间的分隔符
-     */
-    private static final String SPLIT_PARAMETERS = ";";
-
-    /**
-     * 客户端传参时，Key_Value间的分隔符
-     */
-    private static final String SPLIT_KEY_VALUE = ":";
-
-    private static final String NULL_STRING = "null";
-
-    private static final String API_PREFIX = "/api";
-
+    @Autowired
+    HttpService httpService;
 
     /**
      * 针对一般用户所有get请求的转发
@@ -65,57 +57,13 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity get(String methodName,String parameters){
-        if(methodName == null){
+    public ResponseEntity get(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
             return MyResponse.badRequest();
         }
-        String routerUrl = authenticateAndReturnRouterUrl(MyRouter.REQUEST_METHOD_GET,methodName);
-        if(routerUrl == null){
-            return MyResponse.forbidden();
-        }
-        ResponseEntity<String> responseEntity;
-        try{
-            /**
-             * TODO 这里出现一个问题，用户是否可以查看别人的信息？用户查看别人的信息时，需不需要隐藏一些敏感信息
-             * 允许管理员在接口中传入userId参数（允许其操作其他User的数据）
-             * 不允许普通用户传递（不允许其操作其他User的数据）
-             */
-            if(isManager()){
-                //Manager的空参数请求，说明就是空参数
-                if(parameters == null){
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class);
-                }else{
-                    //url后拼接的请求参数格式
-                    String urlParameters = getUrlParameters(parameters);
-                    routerUrl += urlParameters;
-                    //请求参数
-                    Map<String,Object> map = parseMap(parameters);
-                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
-                }
-            }else{
-                //User的空参数请求自动拼接userId
-                if(parameters == null){
-                    responseEntity = restTemplate.getForEntity(routerUrl + "?" + USER_ID+ "=" + getUserId(),String.class);
-                }else{
-                    //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
-                    String urlParameters = getUrlParametersWithUserId(parameters);
-                    routerUrl += urlParameters;
-                    //请求参数
-                    Map<String,Object> map = parseMapWithUserId(parameters);
-                    logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
-                    responseEntity = restTemplate.getForEntity(routerUrl,String.class,map);
-                }
 
-            }
+        return httpService.get(httpParametersDTO);
 
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }catch (Exception e){
-            return MyResponse.badRequest();
-        }
-        return responseEntity;
     }
     /**
      * POST请求不允许空参数
@@ -223,140 +171,8 @@ public class HttpController {
         return MyResponse.ok(new MyServiceResponse("修改成功"));
     }
 
-    /**
-     * 鉴权
-     * @param methodName 客户端调用的方法名
-     * @return
-     */
-    private String authenticateAndReturnRouterUrl(String method,String methodName){
-        Integer userId = getUserId();
-        if(userId == null){
-            return null;
-        }
-        List<Integer> routerIdList = CacheUtils.userRouterMap.get(getUserId());
-
-        MyRouterObject routerObject = MyRouter.getRouter(method,methodName);
-
-        if(routerObject == null || routerIdList == null || routerIdList.size() < 1){
-            return null;
-        }
-        Integer routerId = routerObject.getId();
-        String routerUrl = routerIdList.contains(routerId)?routerObject.getRouterUrl():null;
-        return routerUrl;
-
-    }
 
 
 
-    /**
-     * 根据参数生成Map
-     * @param parameters    加密过的参数
-     * @return
-     * @throws Exception
-     */
-    private Map<String,Object> parseMap(String parameters) throws Exception{
-        if(parameters == null){
-            return null;
-        }
-        Map<String ,Object> map = new HashMap<>();
-        for(String kValue : parameters.split(SPLIT_PARAMETERS)){
-            String[] array = kValue.split(SPLIT_KEY_VALUE);
-            String key = array[0];
-            String value = MyBase64Utils.decode(array[1]);
-            map.put(key,value);
-        }
-        return  map;
-    }
-
-    /**
-     * 根据参数生成Map （含userId）
-     * @param parameters    加密过的参数
-     * @return
-     * @throws Exception
-     */
-    private Map<String,Object> parseMapWithUserId(String parameters) throws Exception {
-        Map<String ,Object> map = parseMap(parameters);
-        map.put(USER_ID,getUserId());
-        return map;
-    }
-
-    /**
-     * 获取Url参数
-     * @param parameters 加密过的参数
-     * @return
-     * @throws Exception
-     */
-    private String getUrlParameters(String parameters) throws Exception{
-        if(parameters == null){
-            return null;
-        }
-        StringBuilder builder = new StringBuilder();
-        builder.append("?");
-        for(String kValue : parameters.split(SPLIT_PARAMETERS)){
-            String[] array = kValue.split(SPLIT_KEY_VALUE);
-            String key = array[0];
-           builder.append(key).append("={").append(key).append("}&");
-        }
-        return builder.toString();
-    }
-
-    /**
-     * 获取Url参数（含UserId）
-     * @param parameters    加密过的参数
-     * @return
-     * @throws Exception
-     */
-    private String getUrlParametersWithUserId(String parameters) throws  Exception{
-        return getUrlParameters(parameters) + USER_ID +"={" + USER_ID + "}";
-    }
-
-    /**
-     * 根据组件返回的错误码重组应答报文
-     * @param exception
-     * @return
-     */
-    private ResponseEntity getResponseFromException(HttpClientErrorException exception){
-        ResponseEntity response;
-        switch (exception.getStatusCode()){
-            case FORBIDDEN:  response = MyResponse.forbidden(); break;
-            case BAD_REQUEST: response = MyResponse.badRequest();break;
-            case UNAUTHORIZED: response = MyResponse.unauthorized();break;
-            default:{
-                MyServiceResponse myServiceResponse = new MyServiceResponse(MyServiceResponse.SUCCESS_CODE_FAILED,"未知错误");
-                response = ResponseEntity.status(exception.getStatusCode()).contentType(MediaType.APPLICATION_JSON).body(myServiceResponse);
-            }
-        }
-        return  response;
-    }
-
-
-    private Integer getUserId(){
-        Object object = request.getSession().getAttribute("userId");
-        if(object == null){
-            return null;
-        }else{
-            try {
-                return (int)object;
-            }catch (Exception e){
-                logger.error("session获取失败:" + object);
-                return null;
-            }
-        }
-    }
-
-    /**
-     * TODO 角色准备初始化在common里面，每次UserManagerCenter启动时刷到DB中
-     * @return
-     */
-    private boolean isManager(){
-        Integer userId = getUserId();
-        String roleName = CacheUtils.userRoleMap.get(userId);
-        if(roleName == null || roleName.equals("User")){
-            return false;
-        }else if(roleName.equals("Manager")){
-            return true;
-        }
-        return false;
-    }
 
 }
