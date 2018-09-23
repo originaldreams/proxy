@@ -196,7 +196,7 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private String getUrlParametersWithUserId(String parameters) throws  Exception{
+    private String getUrlParametersWithUserId(String parameters) throws PatternSyntaxException{
         return getUrlParameters(parameters) + HttpConstant.USER_ID +"={" + HttpConstant.USER_ID + "}";
     }
 
@@ -255,7 +255,7 @@ public class HttpServiceImpl implements HttpService {
      * @param methodName 客户端调用的方法名
      * @return
      */
-    private String authenticateAndReturnRouterUrl(String method,String methodName){
+    private String authenticateAndReturnRouterUrl(String method, String methodName){
 //        Integer userId = getUserId();
 
 //        if(userId == null){
@@ -329,7 +329,7 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private Map<String,Object> parseMapWithUserId(String parameters) throws Exception {
+    private Map<String,Object> parseMapWithUserId(String parameters) throws PatternSyntaxException {
         Map<String ,Object> map = parseMap(parameters);
         map.put(USER_ID,getUserId());
         return map;
