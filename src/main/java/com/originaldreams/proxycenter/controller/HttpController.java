@@ -6,7 +6,6 @@ import com.originaldreams.common.response.MyServiceResponse;
 import com.originaldreams.common.router.MyRouter;
 import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.common.util.StringUtils;
-import com.originaldreams.common.util.ValidUserName;
 import com.originaldreams.proxycenter.cache.CacheUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,6 +21,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,123 +34,25 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 public class HttpController {
-    private Logger logger = LoggerFactory.getLogger(HttpController.class);
-    @Autowired
-    RestTemplate restTemplate;
 
-    @Autowired
-    private HttpServletRequest request;
+    private static final Logger logger = LoggerFactory.getLogger(HttpController.class);
 
-    private final static String USER_ID = "userId";
 
     /**
      * 客户端传参时，多个参数之间的分隔符
      */
-    private final static String SPLIT_PARAMETERS = ";";
+    private static final String SPLIT_PARAMETERS = ";";
 
     /**
      * 客户端传参时，Key_Value间的分隔符
      */
-    private final static String SPLIT_KEY_VALUE = ":";
+    private static final String SPLIT_KEY_VALUE = ":";
 
     private static final String NULL_STRING = "null";
 
     private static final String API_PREFIX = "/api";
 
-    /**
-     * 统一的登录接口
-     *  TODO 提供统一的用户名、手机号、邮箱识别方法 涉及到用户名规则的制定
-     * @param userName  用户名、手机号、邮箱
-     * @param password  密码
-     * @return
-     */
-    @RequestMapping(value = "/logon",method = RequestMethod.POST)
-    public ResponseEntity logon(String userName,String password){
-        try {
-            logger.info("logon  userName:" + userName);
-            if(userName == null || password == null){
-                return MyResponse.badRequest();
-            }
-            Map<String, String> map = new HashMap<>();
-            map.put("password",password);
-            ResponseEntity<String> responseEntity = null;
-            //手机号
-            if(ValidUserName.isValidPhoneNumber(userName)){
-                map.put("phone",userName);
-                responseEntity = restTemplate.postForEntity(
-                        MyRouter.USER_MANAGER_LOGON + "?email={phone}&password={password}",null,String.class,map);
-            }
-            //邮箱
 
-            else if(ValidUserName.isValidEmailAddress(userName)){
-                map.put("email", userName);
-                responseEntity = restTemplate.postForEntity(
-                        MyRouter.USER_MANAGER_LOGON + "?phone={email}&password={password}",null,String.class,map);
-            }
-            //用户名
-            else if(ValidUserName.isValidUserName(userName)){
-                map.put("userName", userName);
-                responseEntity = restTemplate.postForEntity(
-                        MyRouter.USER_MANAGER_LOGON + "?userName={userName}&password={password}",null,String.class,map);
-            }
-            if(responseEntity == null){
-                return MyResponse.badRequest();
-            }
-            //登录成功，缓存
-            setCacheForLogon(responseEntity);
-            return  responseEntity;
-        }catch (HttpClientErrorException e){
-            e.printStackTrace();
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }
-    }
-
-    /**
-     * 注册
-     * @param userName 手机号或邮箱
-     * @param password  密码
-     * @param verificationCode 验证码
-     * @return
-     */
-    @RequestMapping(value = "/register",method = RequestMethod.POST)
-    public ResponseEntity register(String userName,String password,String verificationCode){
-        try {
-            logger.info("register  :" );
-            if(StringUtils.isEmpty(userName,password,verificationCode)){
-                return MyResponse.badRequest();
-            }
-            Map<String, String> map = new HashMap<>();
-            map.put("userName",userName);
-            map.put("password",password);
-            map.put("verificationCode",verificationCode);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(MyRouter.USER_MANAGER_REGISTER +
-                    "?userName={userName}&password={password}&verificationCode={verificationCode}",null,String.class,map);
-            return  responseEntity;
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }
-    }
-
-    @RequestMapping(value = "/sendVerificationCode",method = RequestMethod.GET)
-    public ResponseEntity sendVerificationCode(String phone){
-        try {
-            logger.info("register  :" );
-            if(phone == null || phone.isEmpty()){
-                return MyResponse.badRequest();
-            }
-            Map<String, String> map = new HashMap<>();
-            map.put("phone",phone);
-
-            ResponseEntity<String> responseEntity = restTemplate.getForEntity(
-                    MyRouter.PUBLIC_SERVICE_SMS_SEND_VERIFICATIONCODE + "?phone={phone}",String.class,map);
-            return  responseEntity;
-        }catch (HttpClientErrorException e){
-            logger.warn("HttpClientErrorException:" + e.getStatusCode());
-            return getResponseFromException(e);
-        }
-    }
     /**
      * 针对一般用户所有get请求的转发
      * 请求格式如：localhost:8805?methodName=USER_MANAGER_PERMISSION_GET_ROLES_BY_ROUTER_ID&parameters=routerId:MTAwMDE=
@@ -427,62 +329,6 @@ public class HttpController {
         return  response;
     }
 
-    /**
-     * 设置登录时的缓存
-     * 包含请求session和用户权限缓存
-     * @param response
-     */
-    private void setCacheForLogon(ResponseEntity<String> response){
-        String result = response.getBody();
-
-        try{
-
-            JSONObject json = new JSONObject(result);
-            int success = json.getInt("success");
-            //登录不成功，不记录session
-            if(success != 0 ){
-                return;
-            }
-            Object data = json.get("data");
-            if (NULL_STRING.equals(data.toString())) {
-                return;
-            }
-            int userId = json.getInt("data");
-            logger.info("logonWithUserName userId:" + userId);
-            //将userId放入Session
-            request.getSession().setAttribute("userId",userId);
-
-            //查询用户的权限Id
-            ResponseEntity<String> responseEntity = restTemplate.getForEntity(
-                    MyRouter.USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
-
-            logger.info("USER_MANAGER_PERMISSION_GET_ROUTER_IDS_BY_USER_ID response:" + responseEntity.getBody());
-            //将查询到的Id列表转化为List，放入缓存
-            json = new JSONObject(responseEntity.getBody());
-            json.getJSONArray("data");
-            List<Object> list = json.getJSONArray("data").toList();
-            List<Integer> routerIds = new ArrayList<>();
-            for(Object object:list){
-                routerIds.add((int)object);
-            }
-            //routerIds放入缓存
-            CacheUtils.userRouterMap.put(userId,routerIds);
-            //用户权限放入缓存
-            responseEntity = restTemplate.getForEntity(
-                    MyRouter.USER_MANAGER_PERMISSION_GET_ROLE_BY_USER_ID + "?" + USER_ID +"=" + userId,String.class);
-
-            json = new JSONObject(responseEntity.getBody());
-            String roleName = json.getJSONObject("data").getString("name");
-            //角色名放入缓存
-            CacheUtils.userRoleMap.put(userId,roleName);
-            logger.info("logonWithUserName roleName :" + roleName + ", routerIds:" + routerIds);
-        }catch (JSONException e){
-            e.printStackTrace();
-            logger.error("setCacheForLogon {}", e.getMessage());
-
-        }
-
-    }
 
     private Integer getUserId(){
         Object object = request.getSession().getAttribute("userId");
