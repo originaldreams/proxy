@@ -7,8 +7,10 @@ import com.originaldreams.common.router.MyRouter;
 import com.originaldreams.common.router.MyRouterObject;
 import com.originaldreams.common.util.StringUtils;
 import com.originaldreams.proxycenter.cache.CacheUtils;
+import com.originaldreams.proxycenter.constants.HttpConstant;
 import com.originaldreams.proxycenter.dto.HttpParametersDTO;
 import com.originaldreams.proxycenter.service.HttpService;
+import com.originaldreams.proxycenter.util.JwtUtil;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -17,10 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -57,12 +56,22 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity get(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+    public ResponseEntity get(
+            @Valid @RequestBody HttpParametersDTO httpParametersDTO,
+            BindingResult bindingResult,
+            @RequestHeader(name = HttpConstant.TOKEN, defaultValue = "") String token
+    ){
         if(bindingResult.hasErrors()){
+            logger.warn("get badRequest, {}", httpParametersDTO);
             return MyResponse.badRequest();
         }
 
-        return httpService.get(httpParametersDTO);
+        if (JwtUtil.isJwtString(token)) {
+            logger.warn("get unauthorized, {}", token);
+            return MyResponse.unauthorized();
+        }
+
+        return httpService.get(httpParametersDTO, token);
 
     }
     /**
@@ -72,12 +81,18 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.POST)
-    public ResponseEntity post(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+    public ResponseEntity post(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult,
+                               @RequestHeader(name = HttpConstant.TOKEN, defaultValue = "") String token){
         if(bindingResult.hasErrors()){
+            logger.warn("post badRequest, {}", httpParametersDTO);
             return MyResponse.badRequest();
         }
+        if (JwtUtil.isJwtString(token)) {
+            logger.warn("post unauthorized, {}", token);
+            return MyResponse.unauthorized();
+        }
 
-        return httpService.post(httpParametersDTO);
+        return httpService.post(httpParametersDTO, token);
 
     }
 
@@ -88,12 +103,19 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.DELETE)
-    public ResponseEntity delete(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+    public ResponseEntity delete(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult,
+                                 @RequestHeader(name = HttpConstant.TOKEN, defaultValue = "") String token
+    ){
         if(bindingResult.hasErrors()){
+            logger.warn("delete badRequest, {}", httpParametersDTO);
             return MyResponse.badRequest();
         }
+        if (JwtUtil.isJwtString(token)) {
+            logger.warn("delete unauthorized, {}", token);
+            return MyResponse.unauthorized();
+        }
 
-        return httpService.delete(httpParametersDTO);
+        return httpService.delete(httpParametersDTO, token);
 
     }
 
@@ -104,12 +126,18 @@ public class HttpController {
      * @return
      */
     @RequestMapping(method = RequestMethod.PUT)
-    public ResponseEntity put(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult){
+    public ResponseEntity put(@Valid @RequestBody HttpParametersDTO httpParametersDTO, BindingResult bindingResult,
+                              @RequestHeader(name = HttpConstant.TOKEN, defaultValue = "") String token){
         if(bindingResult.hasErrors()){
+            logger.warn("put badRequest, {}", httpParametersDTO);
             return MyResponse.badRequest();
         }
+        if (JwtUtil.isJwtString(token)) {
+            logger.warn("put unauthorized, {}", token);
+            return MyResponse.unauthorized();
+        }
 
-        return httpService.put(httpParametersDTO);
+        return httpService.put(httpParametersDTO, token);
 
     }
 

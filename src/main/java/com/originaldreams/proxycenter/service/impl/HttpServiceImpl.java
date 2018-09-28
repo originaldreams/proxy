@@ -9,6 +9,8 @@ import com.originaldreams.proxycenter.cache.CacheUtils;
 import com.originaldreams.proxycenter.constants.HttpConstant;
 import com.originaldreams.proxycenter.dto.HttpParametersDTO;
 import com.originaldreams.proxycenter.service.HttpService;
+import com.originaldreams.proxycenter.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -19,7 +21,6 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ public class HttpServiceImpl implements HttpService {
     private static final Logger logger = LoggerFactory.getLogger(HttpServiceImpl.class);
 
     @Override
-    public ResponseEntity<?> get(HttpParametersDTO httpParametersDTO) {
+    public ResponseEntity<?> get(HttpParametersDTO httpParametersDTO, String token) {
 
         String methodName = httpParametersDTO.getMethodName();
         String parameters = httpParametersDTO.getParameters();
@@ -40,6 +41,8 @@ public class HttpServiceImpl implements HttpService {
         if(routerUrl == null){
             return MyResponse.forbidden();
         }
+
+        Integer userId = getUserId(token);
 
         ResponseEntity<String> responseEntity;
 
@@ -52,7 +55,7 @@ public class HttpServiceImpl implements HttpService {
          */
 
         Map<String,Object> map;
-        if(isManager()){
+        if(isManager(token)){
             //Manager的空参数请求，说明就是空参数
             if(parameters == null){
                 responseEntity = restTemplate.getForEntity(routerUrl,String.class);
@@ -69,14 +72,14 @@ public class HttpServiceImpl implements HttpService {
             //User的空参数请求自动拼接userId
             if(parameters == null){
                 // TODO userId
-                responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + "userId",String.class);
+                responseEntity = restTemplate.getForEntity(routerUrl + "?" + HttpConstant.USER_ID+ "=" + userId,String.class);
                 return responseEntity;
             }else{
                 //url后拼接的请求参数格式,原则上不允许上传userId，当请求参数中有userId时，会被改写为自己的userId
                 String urlParameters = getUrlParametersWithUserId(parameters);
                 routerUrl += urlParameters;
                 //请求参数
-                map = parseMapWithUserId(parameters);
+                map = parseMapWithUserId(parameters, token);
                 logger.info("get  methodName:" + methodName + ",url:" + routerUrl);
             }
 
@@ -94,7 +97,7 @@ public class HttpServiceImpl implements HttpService {
     }
 
     @Override
-    public ResponseEntity<?> post(HttpParametersDTO httpParametersDTO) {
+    public ResponseEntity<?> post(HttpParametersDTO httpParametersDTO, String token) {
 
         String methodName = httpParametersDTO.getMethodName();
         String parameters = httpParametersDTO.getParameters();
@@ -109,12 +112,12 @@ public class HttpServiceImpl implements HttpService {
         ResponseEntity<String> responseEntity;
         try{
             Map<String,Object> map ;
-            if(isManager()){
+            if(isManager(token)){
                 routerUrl = routerUrl + getUrlParameters(parameters);
                 map = parseMap(parameters);
             }else{
                 routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
+                map = parseMapWithUserId(parameters, token);
             }
             logger.info("post  methodName:" + methodName + ",url:" + routerUrl);
             responseEntity = restTemplate.postForEntity(routerUrl,null,String.class,map);
@@ -128,7 +131,7 @@ public class HttpServiceImpl implements HttpService {
     }
 
     @Override
-    public ResponseEntity<?> put(HttpParametersDTO httpParametersDTO) {
+    public ResponseEntity<?> put(HttpParametersDTO httpParametersDTO, String token) {
 
         String methodName = httpParametersDTO.getMethodName();
         String parameters = httpParametersDTO.getParameters();
@@ -141,12 +144,12 @@ public class HttpServiceImpl implements HttpService {
         RestTemplate restTemplate = new RestTemplate();
         try{
             Map<String,Object> map ;
-            if(isManager()){
+            if(isManager(token)){
                 routerUrl = routerUrl + getUrlParameters(parameters);
                 map = parseMap(parameters);
             }else{
                 routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
+                map = parseMapWithUserId(parameters, token);
             }
             logger.info("put methodName:" + methodName + ",url:" + routerUrl);
             restTemplate.put(routerUrl,null,map);
@@ -160,7 +163,7 @@ public class HttpServiceImpl implements HttpService {
     }
 
     @Override
-    public ResponseEntity<?> delete(HttpParametersDTO httpParametersDTO) {
+    public ResponseEntity<?> delete(HttpParametersDTO httpParametersDTO, String token) {
 
         String methodName = httpParametersDTO.getMethodName();
         String parameters = httpParametersDTO.getParameters();
@@ -174,12 +177,12 @@ public class HttpServiceImpl implements HttpService {
 
         try{
             Map<String,Object> map ;
-            if(isManager()){
+            if(isManager(token)){
                 routerUrl = routerUrl + getUrlParameters(parameters);
                 map = parseMap(parameters);
             }else{
                 routerUrl = routerUrl + getUrlParametersWithUserId(parameters);
-                map = parseMapWithUserId(parameters);
+                map = parseMapWithUserId(parameters, token);
             }
             logger.info("delete methodName:" + methodName + ",url:" + routerUrl);
             restTemplate.delete(routerUrl,map);
@@ -240,8 +243,8 @@ public class HttpServiceImpl implements HttpService {
      * TODO 角色准备初始化在common里面，每次UserManagerCenter启动时刷到DB中
      * @return
      */
-    private boolean isManager(){
-        Integer userId = getUserId();
+    private boolean isManager(String token){
+        Integer userId = getUserId(token);
         String roleName = CacheUtils.userRoleMap.get(userId);
         if(roleName == null || roleName.equals("User")){
             return false;
@@ -289,12 +292,18 @@ public class HttpServiceImpl implements HttpService {
             return null;
         }
         Map<String ,Object> map = new HashMap<>();
-        for(String kValue : parameters.split(HttpConstant.SPLIT_PARAMETERS)){
-            String[] array = kValue.split(HttpConstant.SPLIT_KEY_VALUE);
-            String key = array[0];
-            String value = MyBase64Utils.decode(array[1]);
-            map.put(key,value);
+        try {
+            for(String kValue : parameters.split(HttpConstant.SPLIT_PARAMETERS)){
+                String[] array = kValue.split(HttpConstant.SPLIT_KEY_VALUE);
+                String key = array[0];
+                String value = MyBase64Utils.decode(array[1]);
+                map.put(key,value);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            logger.error("parseMap error {}", parameters);
         }
+
         return  map;
     }
 
@@ -331,11 +340,25 @@ public class HttpServiceImpl implements HttpService {
      * @return
      * @throws Exception
      */
-    private Map<String,Object> parseMapWithUserId(String parameters) throws PatternSyntaxException {
+    private Map<String,Object> parseMapWithUserId(String parameters, String token) throws PatternSyntaxException {
         Map<String ,Object> map = parseMap(parameters);
-        map.put(USER_ID,getUserId());
+        map.put(HttpConstant.USER_ID, getUserId(token));
         return map;
     }
 
+
+    public Integer getUserId(String jwt) {
+        JwtUtil jwtUtil = new JwtUtil();
+        Claims claims = jwtUtil.parseJWT(jwt);
+        try {
+            Integer value = Integer.valueOf(claims.getId());
+            return value;
+        } catch (NumberFormatException e) {
+            logger.warn("getUserId number format error, jwt = {}", jwt);
+            return null;
+
+        }
+
+    }
 
 }

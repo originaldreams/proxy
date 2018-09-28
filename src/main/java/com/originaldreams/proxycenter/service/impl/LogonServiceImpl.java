@@ -65,6 +65,7 @@ public class LogonServiceImpl implements LogonService {
         // TODO 异步存储
         setCacheForLogon(responseEntity);
 
+
         return responseEntity;
     }
 

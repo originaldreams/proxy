@@ -5,12 +5,12 @@ import org.springframework.http.ResponseEntity;
 
 public interface HttpService {
 
-    ResponseEntity<?> get(HttpParametersDTO httpParametersDTO);
+    ResponseEntity<?> get(HttpParametersDTO httpParametersDTO, String token);
 
-    ResponseEntity<?> post(HttpParametersDTO httpParametersDTO);
+    ResponseEntity<?> post(HttpParametersDTO httpParametersDTO, String token);
 
-    ResponseEntity<?> put(HttpParametersDTO httpParametersDTO);
+    ResponseEntity<?> put(HttpParametersDTO httpParametersDTO, String token);
 
-    ResponseEntity<?> delete(HttpParametersDTO httpParametersDTO);
+    ResponseEntity<?> delete(HttpParametersDTO httpParametersDTO, String token);
 
 }

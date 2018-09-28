@@ -1,19 +1,23 @@
 package com.originaldreams.proxycenter.util;
 
 import com.originaldreams.proxycenter.config.JwtProperties;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtBuilder;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.SignatureException;
 import org.apache.tomcat.util.codec.binary.Base64;
-import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Date;
 
+/**
+ * @author MAMIAN
+ */
 public class JwtUtil {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
     @Autowired
     private JwtProperties jwtProperties;
@@ -33,7 +37,7 @@ public class JwtUtil {
      * 创建jwt
      * @param id
      * @param subject
-     * @param ttlMillis
+     * @param ttlMillis 过期时间
      * @return
      * @throws Exception
      */
@@ -42,6 +46,9 @@ public class JwtUtil {
         SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
         long nowMillis = System.currentTimeMillis();
         Date now = new Date(nowMillis);
+
+
+
         SecretKey key = generalKey();
         JwtBuilder builder = Jwts.builder()
                 .setId(id)
@@ -63,7 +70,9 @@ public class JwtUtil {
      * @return
      * @throws Exception
      */
-    public Claims parseJWT(String jwt) {
+    public Claims parseJWT(String jwt) throws
+            MalformedJwtException, SignatureException, ExpiredJwtException, UnsupportedJwtException,
+            IllegalArgumentException {
         SecretKey key = generalKey();
         Claims claims = Jwts.parser()
                 .setSigningKey(key)
@@ -71,20 +80,19 @@ public class JwtUtil {
         return claims;
     }
 
-    public Integer getUserId(String jwt) {
-        Claims claims = parseJWT(jwt);
-        return (Integer) claims.get("userId");
-    }
+    public static boolean isJwtString(String jwtToken) {
+        if (null == jwtToken || jwtToken.trim().isEmpty()) {
+            return false;
+        }
+        JwtUtil jwtUtil = new JwtUtil();
+        try {
+            jwtUtil.parseJWT(jwtToken);
+            return true;
+        } catch (MalformedJwtException | SignatureException | ExpiredJwtException | UnsupportedJwtException |
+                IllegalArgumentException e) {
+            return false;
+        }
 
-    /**
-     * 生成subject信息
-     *
-     * @return
-     */
-    public static String generalSubject(String userId){
-        JSONObject jo = new JSONObject();
-        jo.put("userId", userId);
-        return jo.toString();
     }
 
 
